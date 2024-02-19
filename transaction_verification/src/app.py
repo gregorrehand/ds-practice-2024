@@ -15,15 +15,22 @@ from concurrent import futures
 
 # Create a class to define the server functions, derived from
 # transaction_verification_pb2_grpc.HelloServiceServicer
-class HelloService(transaction_verification_grpc.HelloServiceServicer):
+class HelloService(transaction_verification_grpc.VerificationServiceServicer):
     # Create an RPC function to say hello
-    def SayHello(self, request, context):
+    def TransactionVerification(self, request, context):
         # Create a HelloResponse object
-        response = transaction_verification.HelloResponse()
-        # Set the greeting field of the response object
-        response.greeting = "Hello, " + request.name
-        # Print the greeting message
-        print(response.greeting)
+        response = transaction_verification.VerificationResponse()
+
+        response.isOk = (request.user_name != "" and
+                         request.user_contact != "" and
+                         request.creditcard_nr != "" and
+                         request.items != [] and
+                         request.quantities != [] and
+                         sum(request.quantities) > 0
+                         )
+
+        #print(request.user_name, request.user_contact, request.creditcard_nr, request.items, request.quantities)
+
         # Return the response object
         return response
 
@@ -31,8 +38,8 @@ def serve():
     # Create a gRPC server
     server = grpc.server(futures.ThreadPoolExecutor())
     # Add HelloService
-    transaction_verification_grpc.add_HelloServiceServicer_to_server(HelloService(), server)
-    # Listen on port 50051
+    transaction_verification_grpc.add_VerificationServiceServicer_to_server(HelloService(), server)
+    # Listen on port 50052
     port = "50052"
     server.add_insecure_port("[::]:" + port)
     # Start the server
