@@ -1,5 +1,6 @@
 import sys
 import os
+import logging
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -13,12 +14,16 @@ import transaction_verification_pb2_grpc as transaction_verification_grpc
 import grpc
 from concurrent import futures
 
+logging.getLogger().setLevel(logging.DEBUG)  # set logging level so stuff shows up
+
 # Create a class to define the server functions, derived from
 # transaction_verification_pb2_grpc.HelloServiceServicer
 class HelloService(transaction_verification_grpc.VerificationServiceServicer):
     # Create an RPC function to say hello
     def TransactionVerification(self, request, context):
-        # Create a HelloResponse object
+
+        logging.log(logging.INFO, "Received TransactionVerification request")
+
         response = transaction_verification.VerificationResponse()
 
         response.isOk = (request.user_name != "" and

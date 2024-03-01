@@ -1,6 +1,7 @@
 import sys
 import os
 import threading
+import logging
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -15,6 +16,9 @@ utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/transaction_v
 sys.path.insert(0, utils_path)
 import transaction_verification_pb2 as transaction_verification
 import transaction_verification_pb2_grpc as transaction_verification_grpc
+
+# show all logs
+logging.getLogger().setLevel(logging.DEBUG)
 
 import grpc
 
@@ -73,23 +77,28 @@ def checkout():
     Responds with a JSON object containing the order ID, status, and suggested books.
     """
     # Print request object data
-    print("Request Data:", request.json)
+    logging.log(logging.INFO, f"Recieved checkout request: {request.json}")
     out_dict = dict()  # save the results of all threads here
 
     threads = [
-        threading.Thread(target=lambda request, out_dict: out_dict.__setitem__("verification", get_verification(request)), args=(request.json, out_dict)),
+        threading.Thread(target=lambda request, out_dict: out_dict.__setitem__("verification", get_verification(request)), args=(request.json, out_dict),
+                         name="transaction_verification"),
         # todo make similar threads for fraud detection and suggestion service
-        # threading.Thread(target=lambda request, out_dict: out_dict.__setitem__("fraud_detection", is_fraud(request)), args=(request.json, out_dict)),
-        # threading.Thread(target=lambda request, out_dict: out_dict.__setitem__("suggested_books", get_recommendations(request)),args=(request.json, out_dict)),
+        #threading.Thread(target=lambda request, out_dict: out_dict.__setitem__("fraud_detection", is_fraud(request)), args=(request.json, out_dict),
+        #                 name="fraud_detection"),
+        #threading.Thread(target=lambda request, out_dict: out_dict.__setitem__("suggested_books", get_recommendations(request)),args=(request.json, out_dict),
+        #/                 name="suggested_books"),
     ]
 
     for thread in threads:
+        logging.log(logging.INFO, f"Starting thread {thread.name}")
         thread.start()
 
     for thread in threads:
         thread.join()
+        logging.log(logging.INFO, f"Thread {thread.name} done")
 
-    print("thread outputs:", out_dict)
+    # print("thread outputs:", out_dict)
 
     is_approved = out_dict["verification"] #and out_dict["fraud_detection"]
 
@@ -100,6 +109,8 @@ def checkout():
         'suggestedBooks': None  # out_dict["suggested_books"]
     }
 
+    logging.log(logging.INFO, "Sending order status response")
+
     return order_status_response
 
 
@@ -107,4 +118,5 @@ if __name__ == '__main__':
     # Run the app in debug mode to enable hot reloading.
     # This is useful for development.
     # The default port is 5000.
+    logging.log(logging.INFO, "Starting orchestrator")
     app.run(host='0.0.0.0')
