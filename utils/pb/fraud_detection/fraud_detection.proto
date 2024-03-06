@@ -2,14 +2,14 @@ syntax = "proto3";
 
 package hello;
 
-service HelloService {
-    rpc SayHello (HelloRequest) returns (HelloResponse);
+service FraudDetectionService {
+    rpc ValidateOrder (FraudDetectionRequest) returns (FraudDetectionResponse);
 }
 
-message HelloRequest {
+message FraudDetectionRequest {
     string name = 1;
 }
 
-message HelloResponse {
-    string greeting = 1;
+message FraudDetectionResponse {
+    bool isOk = 1;
 }

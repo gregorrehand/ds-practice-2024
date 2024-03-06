@@ -11,6 +11,10 @@ utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/fraud_detecti
 sys.path.insert(0, utils_path)
 import fraud_detection_pb2 as fraud_detection
 import fraud_detection_pb2_grpc as fraud_detection_grpc
+utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/suggestions'))
+sys.path.insert(0, utils_path)
+import suggestions_pb2 as suggestions
+import suggestions_pb2_grpc as suggestions_grpc
 
 utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/transaction_verification'))
 sys.path.insert(0, utils_path)
@@ -23,16 +27,22 @@ logging.getLogger().setLevel(logging.DEBUG)
 import grpc
 
 def greet(name='you'):
-    # Establish a connection with the fraud-detection gRPC service.
-    with grpc.insecure_channel('fraud_detection:50051') as channel:
+    return "hello"
+
+def get_suggestions(request):
+    with grpc.insecure_channel('suggestions:50053') as channel:
         # Create a stub object.
-        stub = fraud_detection_grpc.HelloServiceStub(channel)
+        stub = suggestions_grpc.SuggestionsServiceStub(channel)
         # Call the service through the stub object.
+        response = stub.GetSuggestions(suggestions.SuggestionsRequest(name="eee"))
+    return [suggestion_to_dict(suggestion) for suggestion in response.suggestions]
 
-        response = stub.SayHello(fraud_detection.HelloRequest(name=name))
-    return response.greeting
-
-
+def suggestion_to_dict(suggestion):
+    return {
+        "bookId": suggestion.bookId,
+        "title": suggestion.title,
+        "author": suggestion.author,
+    }
 def get_verification(request):
     with grpc.insecure_channel('transaction_verification:50052') as channel:
         # Create a stub object.
@@ -47,6 +57,16 @@ def get_verification(request):
         response = stub.TransactionVerification(req)
     return response.isOk
 
+
+def validate_order(request):
+    with grpc.insecure_channel('fraud_detection:50051') as channel:
+        # Create a stub object.
+        stub = fraud_detection_grpc.FraudDetectionServiceStub(channel)
+        req = fraud_detection.FraudDetectionRequest(name=request["user"]["name"])
+
+        # Call the service through the stub object.
+        response = stub.ValidateOrder(req)
+    return response.isOk
 
 # Import Flask.
 # Flask is a web framework for Python.
@@ -77,17 +97,16 @@ def checkout():
     Responds with a JSON object containing the order ID, status, and suggested books.
     """
     # Print request object data
-    logging.log(logging.INFO, f"Recieved checkout request: {request.json}")
+    logging.log(logging.INFO, f"Received checkout request: {request.json}")
     out_dict = dict()  # save the results of all threads here
 
     threads = [
         threading.Thread(target=lambda request, out_dict: out_dict.__setitem__("verification", get_verification(request)), args=(request.json, out_dict),
                          name="transaction_verification"),
-        # todo make similar threads for fraud detection and suggestion service
-        #threading.Thread(target=lambda request, out_dict: out_dict.__setitem__("fraud_detection", is_fraud(request)), args=(request.json, out_dict),
-        #                 name="fraud_detection"),
-        #threading.Thread(target=lambda request, out_dict: out_dict.__setitem__("suggested_books", get_recommendations(request)),args=(request.json, out_dict),
-        #/                 name="suggested_books"),
+        threading.Thread(target=lambda request, out_dict: out_dict.__setitem__("fraud_detection", validate_order(request)), args=(request.json, out_dict),
+                         name="fraud_detection"),
+        threading.Thread(target=lambda request, out_dict: out_dict.__setitem__("suggested_books", get_suggestions(request)),args=(request.json, out_dict),
+                         name="suggested_books"),
     ]
 
     for thread in threads:
@@ -98,16 +117,22 @@ def checkout():
         thread.join()
         logging.log(logging.INFO, f"Thread {thread.name} done")
 
-    # print("thread outputs:", out_dict)
 
-    is_approved = out_dict["verification"] #and out_dict["fraud_detection"]
-
-    # Dummy response following the provided YAML specification for the bookstore
     order_status_response = {
         'orderId': '12345',
-        'status': 'Order Approved' if is_approved else "Order Rejected",
-        'suggestedBooks': None  # out_dict["suggested_books"]
+        'status': 'Order Accepted',
+        'suggestedBooks': out_dict["suggested_books"]
     }
+    transaction_approved = out_dict["verification"]
+    order_approved = out_dict["fraud_detection"]
+    if not transaction_approved:
+        order_status_response = {
+            'status': 'Transaction Rejected',
+        }
+    if not order_approved:
+        order_status_response = {
+            'status': 'Order Rejected',
+        }
 
     logging.log(logging.INFO, "Sending order status response")
 

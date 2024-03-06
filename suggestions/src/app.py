@@ -1,5 +1,6 @@
 import sys
 import os
+import logging
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -13,17 +14,23 @@ import suggestions_pb2_grpc as suggestions_grpc
 import grpc
 from concurrent import futures
 
+logging.getLogger().setLevel(logging.DEBUG)  # set logging level so stuff shows up
+
 # Create a class to define the server functions, derived from
 # suggestions_pb2_grpc.HelloServiceServicer
-class HelloService(suggestions_grpc.HelloServiceServicer):
+class SuggestionsService(suggestions_grpc.SuggestionsServiceServicer):
     # Create an RPC function to say hello
-    def SayHello(self, request, context):
-        # Create a HelloResponse object
-        response = suggestions.HelloResponse()
-        # Set the greeting field of the response object
-        response.greeting = "Hello, " + request.name
-        # Print the greeting message
-        print(response.greeting)
+    def GetSuggestions(self, request, context):
+
+        logging.log(logging.INFO, "Received GetSuggestions request")
+
+        # Create a SuggestionsResponse object
+        response = suggestions.SuggestionsResponse()
+        response.suggestions.extend([
+            suggestions.Suggestion(bookId=1, title="Book 1", author="Author 1"),
+            suggestions.Suggestion(bookId=2, title="Book 2", author="Author 2"),
+            suggestions.Suggestion(bookId=3, title="Book 3", author="Author 3"),
+        ])
         # Return the response object
         return response
 
@@ -31,7 +38,7 @@ def serve():
     # Create a gRPC server
     server = grpc.server(futures.ThreadPoolExecutor())
     # Add HelloService
-    suggestions_grpc.add_HelloServiceServicer_to_server(HelloService(), server)
+    suggestions_grpc.add_SuggestionsServiceServicer_to_server(SuggestionsService(), server)
     # Listen on port 50051
     port = "50053"
     server.add_insecure_port("[::]:" + port)
