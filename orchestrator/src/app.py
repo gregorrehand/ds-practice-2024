@@ -62,10 +62,11 @@ def validate_order(request):
     with grpc.insecure_channel('fraud_detection:50051') as channel:
         # Create a stub object.
         stub = fraud_detection_grpc.FraudDetectionServiceStub(channel)
-        req = fraud_detection.FraudDetectionRequest(name=request["user"]["name"])
+        req = fraud_detection.FraudDetectionRequest(expirationDate=request["creditCard"]["expirationDate"])
 
         # Call the service through the stub object.
         response = stub.ValidateOrder(req)
+    logging.log(logging.INFO, f"Fraud detection response: {response.isOk}")
     return response.isOk
 
 # Import Flask.

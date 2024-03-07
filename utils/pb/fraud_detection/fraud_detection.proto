@@ -7,7 +7,7 @@ service FraudDetectionService {
 }
 
 message FraudDetectionRequest {
-    string name = 1;
+    string expirationDate = 1;
 }
 
 message FraudDetectionResponse {

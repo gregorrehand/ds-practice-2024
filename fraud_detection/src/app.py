@@ -1,6 +1,7 @@
 import sys
 import os
 import logging
+from datetime import datetime
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -22,12 +23,15 @@ logging.getLogger().setLevel(logging.DEBUG)  # set logging level so stuff shows 
 class FraudDetectionService(fraud_detection_grpc.FraudDetectionServiceServicer):
     # Create an RPC function to say hello
     def ValidateOrder(self, request, context):
-        logging.log(logging.INFO, "Received ValidateOrder request in fraud_detection")
+        logging.log(logging.INFO, "Received ValidateOrder request in fraud_detection: %s", request)
 
         response = fraud_detection.FraudDetectionResponse()
-        if request.name == "" or request.name[0] == 'a':
-            response.isOk = False
         response.isOk = True
+
+        splitDate = request.expirationDate.split("/")
+        # Check if the expiration date has already passed
+        if len(splitDate) != 2 or splitDate[1] < str(datetime.now().year)[-2:] or (splitDate[1] == str(datetime.now().year)[-2:] and splitDate[0] < datetime.now().strftime("%m")):
+            response.isOk = False
 
         return response
 
