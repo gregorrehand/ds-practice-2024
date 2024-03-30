@@ -11,6 +11,7 @@ utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/fraud_detecti
 sys.path.insert(0, utils_path)
 import fraud_detection_pb2 as fraud_detection
 import fraud_detection_pb2_grpc as fraud_detection_grpc
+
 utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/suggestions'))
 sys.path.insert(0, utils_path)
 import suggestions_pb2 as suggestions
@@ -26,16 +27,27 @@ logging.getLogger().setLevel(logging.DEBUG)
 
 import grpc
 
+order_id_counter = 0
+
+
+def get_order_id():
+    global order_id_counter
+    order_id_counter += 1
+    return order_id_counter - 1
+
+
 def greet(name='you'):
     return "hello"
 
+
 def get_suggestions(request):
     with grpc.insecure_channel('suggestions:50053') as channel:
-        # Create a stub object.
         stub = suggestions_grpc.SuggestionsServiceStub(channel)
-        # Call the service through the stub object.
-        response = stub.GetSuggestions(suggestions.SuggestionsRequest(name="eee"))
+        response = stub.GetSuggestions(suggestions.SuggestionsRequest(
+            orderId=request["order_id"],
+        ))
     return [suggestion_to_dict(suggestion) for suggestion in response.suggestions]
+
 
 def suggestion_to_dict(suggestion):
     return {
@@ -43,6 +55,8 @@ def suggestion_to_dict(suggestion):
         "title": suggestion.title,
         "author": suggestion.author,
     }
+
+
 def get_verification(request):
     with grpc.insecure_channel('transaction_verification:50052') as channel:
         # Create a stub object.
@@ -51,7 +65,9 @@ def get_verification(request):
                                                            user_contact=request["user"]["contact"],
                                                            creditcard_nr=request["creditCard"]["number"],
                                                            items=[x["name"] for x in request["items"]],
-                                                           quantities=[x["quantity"] for x in request["items"]])
+                                                           quantities=[x["quantity"] for x in request["items"]],
+                                                           orderId=request["order_id"],
+                                                           )
 
         # Call the service through the stub object.
         response = stub.TransactionVerification(req)
@@ -62,12 +78,16 @@ def validate_order(request):
     with grpc.insecure_channel('fraud_detection:50051') as channel:
         # Create a stub object.
         stub = fraud_detection_grpc.FraudDetectionServiceStub(channel)
-        req = fraud_detection.FraudDetectionRequest(expirationDate=request["creditCard"]["expirationDate"])
+        req = fraud_detection.FraudDetectionRequest(
+            expirationDate=request["creditCard"]["expirationDate"],
+            userName=request["user"]["name"],
+            orderId=request["order_id"],
+        )
 
         # Call the service through the stub object.
         response = stub.ValidateOrder(req)
-    logging.log(logging.INFO, f"Fraud detection response: {response.isOk}")
     return response.isOk
+
 
 # Import Flask.
 # Flask is a web framework for Python.
@@ -81,6 +101,7 @@ app = Flask(__name__)
 # Enable CORS for the app.
 CORS(app)
 
+
 # Define a GET endpoint.
 @app.route('/', methods=['GET'])
 def index():
@@ -92,22 +113,30 @@ def index():
     # Return the response.
     return response
 
+
 @app.route('/checkout', methods=['POST'])
 def checkout():
     """
     Responds with a JSON object containing the order ID, status, and suggested books.
     """
     # Print request object data
+    request.json["order_id"] = str(get_order_id())
     logging.log(logging.INFO, f"Received checkout request: {request.json}")
     out_dict = dict()  # save the results of all threads here
 
     threads = [
-        threading.Thread(target=lambda request, out_dict: out_dict.__setitem__("verification", get_verification(request)), args=(request.json, out_dict),
-                         name="transaction_verification"),
-        threading.Thread(target=lambda request, out_dict: out_dict.__setitem__("fraud_detection", validate_order(request)), args=(request.json, out_dict),
-                         name="fraud_detection"),
-        threading.Thread(target=lambda request, out_dict: out_dict.__setitem__("suggested_books", get_suggestions(request)),args=(request.json, out_dict),
-                         name="suggested_books"),
+        threading.Thread(
+            target=lambda request, out_dict: out_dict.__setitem__("verification", get_verification(request)),
+            args=(request.json, out_dict),
+            name="transaction_verification"),
+        threading.Thread(
+            target=lambda request, out_dict: out_dict.__setitem__("fraud_detection", validate_order(request)),
+            args=(request.json, out_dict),
+            name="fraud_detection"),
+        threading.Thread(
+            target=lambda request, out_dict: out_dict.__setitem__("suggested_books", get_suggestions(request)),
+            args=(request.json, out_dict),
+            name="suggested_books"),
     ]
 
     for thread in threads:
@@ -118,9 +147,8 @@ def checkout():
         thread.join()
         logging.log(logging.INFO, f"Thread {thread.name} done")
 
-
     order_status_response = {
-        'orderId': '12345',
+        'orderId': request.json["order_id"],
         'status': 'Order Accepted',
         'suggestedBooks': out_dict["suggested_books"]
     }

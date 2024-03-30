@@ -1,9 +1,10 @@
 syntax = "proto3";
 
-package hello;
+package transaction_verification;
 
 service VerificationService {
     rpc TransactionVerification (VerificationRequest) returns (VerificationResponse);
+    rpc UpdateVectorClock (VectorClockRequest) returns (Empty);
 }
 
 message VerificationRequest {
@@ -12,8 +13,17 @@ message VerificationRequest {
     string creditcard_nr = 3;
     repeated string items = 4;
     repeated int32 quantities = 5;
+    string orderId = 6;
 }
 
 message VerificationResponse {
     bool isOk = 1;
 }
+
+message VectorClockRequest {
+    string orderId = 1;
+    repeated int32 vectorClock = 2;
+    bool shouldCancel = 3;
+}
+
+message Empty {}

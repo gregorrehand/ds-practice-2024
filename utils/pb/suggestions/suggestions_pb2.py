@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11suggestions.proto\x12\x0bsuggestions\"\"\n\x12SuggestionsRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"C\n\x13SuggestionsResponse\x12,\n\x0bsuggestions\x18\x01 \x03(\x0b\x32\x17.suggestions.Suggestion\";\n\nSuggestion\x12\x0e\n\x06\x62ookId\x18\x01 \x01(\x03\x12\r\n\x05title\x18\x02 \x01(\t\x12\x0e\n\x06\x61uthor\x18\x03 \x01(\t2i\n\x12SuggestionsService\x12S\n\x0eGetSuggestions\x12\x1f.suggestions.SuggestionsRequest\x1a .suggestions.SuggestionsResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11suggestions.proto\x12\x0bsuggestions\"%\n\x12SuggestionsRequest\x12\x0f\n\x07orderId\x18\x01 \x01(\t\"C\n\x13SuggestionsResponse\x12,\n\x0bsuggestions\x18\x01 \x03(\x0b\x32\x17.suggestions.Suggestion\";\n\nSuggestion\x12\x0e\n\x06\x62ookId\x18\x01 \x01(\x03\x12\r\n\x05title\x18\x02 \x01(\t\x12\x0e\n\x06\x61uthor\x18\x03 \x01(\t\"P\n\x12VectorClockRequest\x12\x0f\n\x07orderId\x18\x01 \x01(\t\x12\x13\n\x0bvectorClock\x18\x02 \x03(\x05\x12\x14\n\x0cshouldCancel\x18\x03 \x01(\x08\"\x07\n\x05\x45mpty2\xb3\x01\n\x12SuggestionsService\x12S\n\x0eGetSuggestions\x12\x1f.suggestions.SuggestionsRequest\x1a .suggestions.SuggestionsResponse\x12H\n\x11UpdateVectorClock\x12\x1f.suggestions.VectorClockRequest\x1a\x12.suggestions.Emptyb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -22,11 +22,15 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'suggestions_pb2', _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
   DESCRIPTOR._options = None
   _globals['_SUGGESTIONSREQUEST']._serialized_start=34
-  _globals['_SUGGESTIONSREQUEST']._serialized_end=68
-  _globals['_SUGGESTIONSRESPONSE']._serialized_start=70
-  _globals['_SUGGESTIONSRESPONSE']._serialized_end=137
-  _globals['_SUGGESTION']._serialized_start=139
-  _globals['_SUGGESTION']._serialized_end=198
-  _globals['_SUGGESTIONSSERVICE']._serialized_start=200
-  _globals['_SUGGESTIONSSERVICE']._serialized_end=305
+  _globals['_SUGGESTIONSREQUEST']._serialized_end=71
+  _globals['_SUGGESTIONSRESPONSE']._serialized_start=73
+  _globals['_SUGGESTIONSRESPONSE']._serialized_end=140
+  _globals['_SUGGESTION']._serialized_start=142
+  _globals['_SUGGESTION']._serialized_end=201
+  _globals['_VECTORCLOCKREQUEST']._serialized_start=203
+  _globals['_VECTORCLOCKREQUEST']._serialized_end=283
+  _globals['_EMPTY']._serialized_start=285
+  _globals['_EMPTY']._serialized_end=292
+  _globals['_SUGGESTIONSSERVICE']._serialized_start=295
+  _globals['_SUGGESTIONSSERVICE']._serialized_end=474
 # @@protoc_insertion_point(module_scope)

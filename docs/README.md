@@ -10,3 +10,12 @@ This folder should contain your documentation, explaining the structure and cont
 
 ![](SystemDiagram.JPG)
 
+## Vector clock diagram
+
+### Successful order
+All of the caches are cleared automatically, once a microservice returns its result to the Orchestrator.
+![](VectorDiagramPass.png)
+
+### Failed order
+If any check is failed, the service will notify all other services. All microservices will return a default answer, and the cache is cleared everywhere.
+![](VectorDiagramFail.png)

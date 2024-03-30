@@ -1,15 +1,26 @@
 syntax = "proto3";
 
-package hello;
+package fraud_detection;
 
 service FraudDetectionService {
     rpc ValidateOrder (FraudDetectionRequest) returns (FraudDetectionResponse);
+    rpc UpdateVectorClock (VectorClockRequest) returns (Empty);
 }
 
 message FraudDetectionRequest {
     string expirationDate = 1;
+    string orderId = 2;
+    string userName = 3;
 }
 
 message FraudDetectionResponse {
     bool isOk = 1;
 }
+
+message VectorClockRequest {
+    string orderId = 1;
+    repeated int32 vectorClock = 2;
+    bool shouldCancel = 3;
+}
+
+message Empty {}

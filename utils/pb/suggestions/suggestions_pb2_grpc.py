@@ -19,12 +19,23 @@ class SuggestionsServiceStub(object):
                 request_serializer=suggestions__pb2.SuggestionsRequest.SerializeToString,
                 response_deserializer=suggestions__pb2.SuggestionsResponse.FromString,
                 )
+        self.UpdateVectorClock = channel.unary_unary(
+                '/suggestions.SuggestionsService/UpdateVectorClock',
+                request_serializer=suggestions__pb2.VectorClockRequest.SerializeToString,
+                response_deserializer=suggestions__pb2.Empty.FromString,
+                )
 
 
 class SuggestionsServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def GetSuggestions(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateVectorClock(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -37,6 +48,11 @@ def add_SuggestionsServiceServicer_to_server(servicer, server):
                     servicer.GetSuggestions,
                     request_deserializer=suggestions__pb2.SuggestionsRequest.FromString,
                     response_serializer=suggestions__pb2.SuggestionsResponse.SerializeToString,
+            ),
+            'UpdateVectorClock': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateVectorClock,
+                    request_deserializer=suggestions__pb2.VectorClockRequest.FromString,
+                    response_serializer=suggestions__pb2.Empty.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -62,5 +78,22 @@ class SuggestionsService(object):
         return grpc.experimental.unary_unary(request, target, '/suggestions.SuggestionsService/GetSuggestions',
             suggestions__pb2.SuggestionsRequest.SerializeToString,
             suggestions__pb2.SuggestionsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def UpdateVectorClock(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/suggestions.SuggestionsService/UpdateVectorClock',
+            suggestions__pb2.VectorClockRequest.SerializeToString,
+            suggestions__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

@@ -14,17 +14,21 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x15\x66raud_detection.proto\x12\x05hello\"/\n\x15\x46raudDetectionRequest\x12\x16\n\x0e\x65xpirationDate\x18\x01 \x01(\t\"&\n\x16\x46raudDetectionResponse\x12\x0c\n\x04isOk\x18\x01 \x01(\x08\x32\x65\n\x15\x46raudDetectionService\x12L\n\rValidateOrder\x12\x1c.hello.FraudDetectionRequest\x1a\x1d.hello.FraudDetectionResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x15\x66raud_detection.proto\x12\x0f\x66raud_detection\"R\n\x15\x46raudDetectionRequest\x12\x16\n\x0e\x65xpirationDate\x18\x01 \x01(\t\x12\x0f\n\x07orderId\x18\x02 \x01(\t\x12\x10\n\x08userName\x18\x03 \x01(\t\"&\n\x16\x46raudDetectionResponse\x12\x0c\n\x04isOk\x18\x01 \x01(\x08\"P\n\x12VectorClockRequest\x12\x0f\n\x07orderId\x18\x01 \x01(\t\x12\x13\n\x0bvectorClock\x18\x02 \x03(\x05\x12\x14\n\x0cshouldCancel\x18\x03 \x01(\x08\"\x07\n\x05\x45mpty2\xcb\x01\n\x15\x46raudDetectionService\x12`\n\rValidateOrder\x12&.fraud_detection.FraudDetectionRequest\x1a\'.fraud_detection.FraudDetectionResponse\x12P\n\x11UpdateVectorClock\x12#.fraud_detection.VectorClockRequest\x1a\x16.fraud_detection.Emptyb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'fraud_detection_pb2', _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
   DESCRIPTOR._options = None
-  _globals['_FRAUDDETECTIONREQUEST']._serialized_start=32
-  _globals['_FRAUDDETECTIONREQUEST']._serialized_end=79
-  _globals['_FRAUDDETECTIONRESPONSE']._serialized_start=81
-  _globals['_FRAUDDETECTIONRESPONSE']._serialized_end=119
-  _globals['_FRAUDDETECTIONSERVICE']._serialized_start=121
-  _globals['_FRAUDDETECTIONSERVICE']._serialized_end=222
+  _globals['_FRAUDDETECTIONREQUEST']._serialized_start=42
+  _globals['_FRAUDDETECTIONREQUEST']._serialized_end=124
+  _globals['_FRAUDDETECTIONRESPONSE']._serialized_start=126
+  _globals['_FRAUDDETECTIONRESPONSE']._serialized_end=164
+  _globals['_VECTORCLOCKREQUEST']._serialized_start=166
+  _globals['_VECTORCLOCKREQUEST']._serialized_end=246
+  _globals['_EMPTY']._serialized_start=248
+  _globals['_EMPTY']._serialized_end=255
+  _globals['_FRAUDDETECTIONSERVICE']._serialized_start=258
+  _globals['_FRAUDDETECTIONSERVICE']._serialized_end=461
 # @@protoc_insertion_point(module_scope)

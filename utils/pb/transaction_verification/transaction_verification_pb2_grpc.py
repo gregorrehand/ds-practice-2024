@@ -15,9 +15,14 @@ class VerificationServiceStub(object):
             channel: A grpc.Channel.
         """
         self.TransactionVerification = channel.unary_unary(
-                '/hello.VerificationService/TransactionVerification',
+                '/transaction_verification.VerificationService/TransactionVerification',
                 request_serializer=transaction__verification__pb2.VerificationRequest.SerializeToString,
                 response_deserializer=transaction__verification__pb2.VerificationResponse.FromString,
+                )
+        self.UpdateVectorClock = channel.unary_unary(
+                '/transaction_verification.VerificationService/UpdateVectorClock',
+                request_serializer=transaction__verification__pb2.VectorClockRequest.SerializeToString,
+                response_deserializer=transaction__verification__pb2.Empty.FromString,
                 )
 
 
@@ -25,6 +30,12 @@ class VerificationServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def TransactionVerification(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateVectorClock(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -38,9 +49,14 @@ def add_VerificationServiceServicer_to_server(servicer, server):
                     request_deserializer=transaction__verification__pb2.VerificationRequest.FromString,
                     response_serializer=transaction__verification__pb2.VerificationResponse.SerializeToString,
             ),
+            'UpdateVectorClock': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateVectorClock,
+                    request_deserializer=transaction__verification__pb2.VectorClockRequest.FromString,
+                    response_serializer=transaction__verification__pb2.Empty.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'hello.VerificationService', rpc_method_handlers)
+            'transaction_verification.VerificationService', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
@@ -59,8 +75,25 @@ class VerificationService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/hello.VerificationService/TransactionVerification',
+        return grpc.experimental.unary_unary(request, target, '/transaction_verification.VerificationService/TransactionVerification',
             transaction__verification__pb2.VerificationRequest.SerializeToString,
             transaction__verification__pb2.VerificationResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def UpdateVectorClock(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/transaction_verification.VerificationService/UpdateVectorClock',
+            transaction__verification__pb2.VectorClockRequest.SerializeToString,
+            transaction__verification__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

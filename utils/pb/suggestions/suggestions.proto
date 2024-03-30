@@ -4,10 +4,11 @@ package suggestions;
 
 service SuggestionsService {
     rpc GetSuggestions (SuggestionsRequest) returns (SuggestionsResponse);
+    rpc UpdateVectorClock (VectorClockRequest) returns (Empty);
 }
 
 message SuggestionsRequest {
-    string name = 1;
+    string orderId = 1;
 }
 
 message SuggestionsResponse {
@@ -15,7 +16,15 @@ message SuggestionsResponse {
 }
 
 message Suggestion {
-    int64 bookId= 1;
+    int64 bookId = 1;
     string title = 2;
     string author = 3;
 }
+
+message VectorClockRequest {
+    string orderId = 1;
+    repeated int32 vectorClock = 2;
+    bool shouldCancel = 3;
+}
+
+message Empty {}
