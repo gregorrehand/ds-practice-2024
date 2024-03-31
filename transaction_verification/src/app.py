@@ -62,7 +62,6 @@ class HelloService(transaction_verification_grpc.VerificationServiceServicer):
                     # send should_cancel=True to all other services
                     self.send_vector_clock_update("fraud_detection", request.orderId)
                     self.send_vector_clock_update("suggestions", request.orderId)
-                    del self.states[request.orderId]
                 else:
                     # send vector clock updates to dependant services
                     self.send_vector_clock_update("fraud_detection", request.orderId)
