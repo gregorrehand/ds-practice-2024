@@ -7,10 +7,6 @@ service OrderQueueService {
   rpc Dequeue(DequeueRequest) returns (DequeueResponse) {}
 }
 
-message Order {
-  string id = 1;
-}
-
 message EnqueueRequest {
   string orderId = 1;
 }
@@ -23,7 +19,7 @@ message DequeueRequest {
 }
 
 message DequeueResponse {
-  Order order = 1;
+  string orderId = 1;
   bool success = 2;
 }
 

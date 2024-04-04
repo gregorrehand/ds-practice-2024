@@ -2,7 +2,7 @@ import sys
 import os
 import logging
 import time
-import etcd3
+import redis
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -26,32 +26,38 @@ logging.getLogger().setLevel(logging.DEBUG)  # set logging level so stuff shows 
 
 class OrderExecutorService():
     def __init__(self):
-        self.order_queue_stub = order_queue_grpc.OrderQueueStub(grpc.insecure_channel(os.getenv('ETCD_ADDRESS', 'localhost') + ':' + 50054))
-        self.etcd = etcd3.client(host=os.getenv('ETCD_ADDRESS', 'localhost'), port=int(os.getenv('ETCD_PORT', '2379')))
+        self.redisClient = redis.Redis(host='redis', port=6379, db=0)
         self.service_id = os.getenv('SERVICE_ID', 'executor1')
-        self.election = self.etcd.election('order-executor-election')
-
-    def start(self):
         while True:
             logging.log(logging.DEBUG, f"{self.service_id} is trying to become the leader")
-            with self.election as leader: # This line campaigns for leadership and releases it after the block is done
-                if leader.leader_value == self.service_id:
-                    logging.log(logging.DEBUG, f"{self.service_id} is now the leader")
-                    self.execute_order()
-                else:
-                    logging.log(logging.DEBUG, f"{self.service_id} is not the leader, waiting")
-            time.sleep(5)  # Wait a bit before retrying for leadership
+            leader = self.try_to_become_leader()
+            if leader:
+                logging.log(logging.DEBUG, f"{self.service_id} is now the leader")
+                self.execute_order()
+            else:
+                logging.log(logging.DEBUG, f"{self.service_id} is not the leader, waiting")
+                time.sleep(5)  # Wait a bit before retrying for leadership
+
+    def dequeue_order(request):
+        with grpc.insecure_channel('order_queue:50054') as channel:
+            stub = order_queue_grpc.OrderQueueServiceStub(channel)
+            response = stub.Dequeue(order_queue.DequeueRequest())
+        return response
+
     def execute_order(self):
-        return True
         try:
-            response = self.order_queue_stub.Dequeue(order_queue.DequeueRequest())
+            response = self.dequeue_order()
             if response.success:
-                logging.log(logging.INFO, f"Order {response.order.id} is being executed...")
+                logging.log(logging.INFO, f"Order {response.orderId} is being executed...")
             else:
                 logging.log(logging.INFO, "No order to execute.")
                 time.sleep(1)
         except grpc.RpcError as e:
             logging.log(logging.ERROR, f"Failed to dequeue order: {e}")
+
+    def try_to_become_leader(self, ttl_seconds=10):
+        acquired = self.redisClient.set('order-executor-election', self.service_id, ex=ttl_seconds, nx=True)
+        return bool(acquired)
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor())
@@ -61,3 +67,7 @@ def serve():
     server.start()
     print(f"Server started. Listening on port {port}.")
     server.wait_for_termination()
+
+
+if __name__ == '__main__':
+    serve()

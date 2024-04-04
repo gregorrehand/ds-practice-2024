@@ -1,14 +1,8 @@
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from typing import ClassVar as _ClassVar, Optional as _Optional
 
 DESCRIPTOR: _descriptor.FileDescriptor
-
-class Order(_message.Message):
-    __slots__ = ("id",)
-    ID_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    def __init__(self, id: _Optional[str] = ...) -> None: ...
 
 class EnqueueRequest(_message.Message):
     __slots__ = ("orderId",)
@@ -27,9 +21,9 @@ class DequeueRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class DequeueResponse(_message.Message):
-    __slots__ = ("order", "success")
-    ORDER_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("orderId", "success")
+    ORDERID_FIELD_NUMBER: _ClassVar[int]
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
-    order: Order
+    orderId: str
     success: bool
-    def __init__(self, order: _Optional[_Union[Order, _Mapping]] = ..., success: bool = ...) -> None: ...
+    def __init__(self, orderId: _Optional[str] = ..., success: bool = ...) -> None: ...

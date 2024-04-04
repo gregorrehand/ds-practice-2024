@@ -130,24 +130,15 @@ services:
           # Mount the suggestions/src directory in the current directory to the /app/suggestions/src directory in the container
           - ./order_queue/src:/app/order_queue/src
 
-  etcd_cluster:
+  redis_cluster:
       # A key value store used for leader election
-      image: docker.io/bitnami/etcd:latest
-      container_name: etcd1
+      image: redis:latest
+      container_name: redis
       restart: always
-      environment:
-          - ALLOW_NONE_AUTHENTICATION=yes
-          - ETCD_NAME=etcd1
-          - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd1:2380
-          - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
-          - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
-          - ETCD_ADVERTISE_CLIENT_URLS=http://etcd1:2379
-          - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster
-          - ETCD_INITIAL_CLUSTER=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
       ports:
-          - 2379:2379
+          - 6379:6379
       volumes:
-          - ./store/etcd1/data:/etcd_data
+          - ./store/redis1/data:/redis_data
 
   order_executor_1: # The advice in the slack was to use 2 copies of the same service with different name
       build:
@@ -158,7 +149,7 @@ services:
       environment:
           - PYTHONUNBUFFERED=TRUE
           - PYTHONFILE=/app/order_executor/src/app.py
-          - ETCD_ADDRESS=http://etcd:2379
+          - REDIS_ADDRESS=http://redis:6379
           - SERVICE_ID=executor1
           - PORT=50056
           - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
@@ -175,7 +166,7 @@ services:
       environment:
           - PYTHONUNBUFFERED=TRUE
           - PYTHONFILE=/app/order_executor/src/app.py
-          - ETCD_ADDRESS=http://etcd:2379
+          - REDIS_ADDRESS=http://redis:6379
           - SERVICE_ID=executor2
           - PORT=50057
           - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
@@ -192,7 +183,7 @@ services:
       environment:
           - PYTHONUNBUFFERED=TRUE
           - PYTHONFILE=/app/order_executor/src/app.py
-          - ETCD_ADDRESS=http://etcd:2379
+          - REDIS_ADDRESS=http://redis:6379
           - SERVICE_ID=executor3
           - PORT=50058
           - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
