@@ -22,6 +22,11 @@ sys.path.insert(0, utils_path)
 import transaction_verification_pb2 as transaction_verification
 import transaction_verification_pb2_grpc as transaction_verification_grpc
 
+utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/order_queue'))
+sys.path.insert(0, utils_path)
+import order_queue_pb2 as order_queue
+import order_queue_pb2_grpc as order_queue_grpc
+
 # show all logs
 logging.getLogger().setLevel(logging.DEBUG)
 
@@ -88,6 +93,13 @@ def validate_order(request):
         response = stub.ValidateOrder(req)
     return response.isOk
 
+def enqueue_order(request):
+    with grpc.insecure_channel('order_queue:50054') as channel:
+        stub = order_queue_grpc.OrderQueueServiceStub(channel)
+        response = stub.Enqueue(order_queue.EnqueueRequest(
+            orderId=request["order_id"],
+        ))
+    return response.success
 
 # Import Flask.
 # Flask is a web framework for Python.
@@ -155,16 +167,20 @@ def checkout():
     transaction_approved = out_dict["verification"]
     order_approved = out_dict["fraud_detection"]
     if not transaction_approved:
-        order_status_response = {
+        return {
             'status': 'Transaction Rejected',
         }
     if not order_approved:
-        order_status_response = {
+        return {
             'status': 'Order Rejected',
         }
 
     logging.log(logging.INFO, "Sending order status response")
-
+    queue_success = enqueue_order(request.json)
+    if not queue_success:
+        return {
+            'status': 'Order rejected due to technical problems',
+        }
     return order_status_response
 
 
