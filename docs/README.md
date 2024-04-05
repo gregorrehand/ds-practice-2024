@@ -19,3 +19,10 @@ All of the caches are cleared automatically, once a microservice returns its res
 ### Failed order
 If any check is failed, the service will notify all other services. All microservices will return a default answer, and the cache is cleared everywhere.
 ![](VectorDiagramFail.png)
+
+
+## Leader election
+
+### Lock-based leader election
+All the executors are trying to acquire the lock. The first one to acquire it becomes the leader. After the lock times out (current ttl=10) others can try to acquire it.
+![](LeaderElectionDiagram.PNG)
