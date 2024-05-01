@@ -26,3 +26,9 @@ If any check is failed, the service will notify all other services. All microser
 ### Lock-based leader election
 All the executors are trying to acquire the lock. The first one to acquire it becomes the leader. After the lock times out (current ttl=10) others can try to acquire it.
 ![](LeaderElectionDiagram.PNG)
+
+## Database Replication
+
+The replication of database uses a Remote-write primary-based protocol where the primary server is being chosen by continuous leader elections
+
+![](DBReplicationDiagram.PNG)
