@@ -98,6 +98,7 @@ def enqueue_order(request):
         stub = order_queue_grpc.OrderQueueServiceStub(channel)
         response = stub.Enqueue(order_queue.EnqueueRequest(
             orderId=request["order_id"],
+            items=request["items"]
         ))
     return response.success
 

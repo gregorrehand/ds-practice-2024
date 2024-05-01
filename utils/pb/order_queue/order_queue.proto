@@ -9,6 +9,12 @@ service OrderQueueService {
 
 message EnqueueRequest {
   string orderId = 1;
+  repeated Item items = 2;
+}
+
+message Item {
+  string name = 1;
+  int32 quantity = 2;
 }
 
 message EnqueueResponse {
@@ -20,6 +26,7 @@ message DequeueRequest {
 
 message DequeueResponse {
   string orderId = 1;
-  bool success = 2;
+  repeated Item items = 2;
+  bool success = 3;
 }
 

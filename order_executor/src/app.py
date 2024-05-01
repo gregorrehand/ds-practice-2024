@@ -3,6 +3,7 @@ import os
 import logging
 import time
 import redis
+import random
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -13,6 +14,11 @@ utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/order_queue')
 sys.path.insert(0, utils_path)
 import order_queue_pb2 as order_queue
 import order_queue_pb2_grpc as order_queue_grpc
+
+utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/books_database'))
+sys.path.insert(0, utils_path)
+import books_database_pb2 as books_database
+import books_database_pb2_grpc as books_database_grpc
 
 utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/order_executor'))
 sys.path.insert(0, utils_path)
@@ -49,6 +55,27 @@ class OrderExecutorService():
             response = self.dequeue_order()
             if response.success:
                 logging.log(logging.INFO, f"Order {response.orderId} is being executed...")
+                db_ports = [(1,50060), (2, 50061), (3,50062)]
+                for item in response.items:
+                    service, port = random.choice(db_ports)
+                    with grpc.insecure_channel(f"books_database_{service}:{port}") as channel:
+                        # Create a stub object.
+                        stub = books_database_grpc.BooksDatabaseServiceStub(channel)
+                        req = books_database.GetStockRequest(
+                            title=item.name
+                        )
+
+                        # Call the service through the stub object.
+                        response = stub.GetStock(req)
+                        logging.log(logging.DEBUG, f"Get stock response: {response.quantity}")
+                        if response.quantity < item.quantity:
+                            logging.log(logging.ERROR, f"Failed to execute order {response.orderId}: Not enough stock for item {item.name}")
+                            return
+                        req = books_database.SetStockRequest(
+                            title=item.name,
+                            quantity=response.quantity - item.quantity,
+                        )
+                        response = stub.SetStock(req)
             else:
                 logging.log(logging.INFO, "No order to execute.")
                 time.sleep(1)

@@ -25,14 +25,14 @@ class OrderQueueService(order_queue_grpc.OrderQueueService):
 
     def Enqueue(self, request, context):
         logging.log(logging.DEBUG, f'Order added to the queue: {request.orderId}')
-        self.queue.append(request.orderId)
+        self.queue.append((request.orderId, request.items))
         return order_queue.EnqueueResponse(success=True)
 
     def Dequeue(self, request, context):
         if self.queue:
-            orderId = self.queue.pop(0)
+            orderId, items = self.queue.pop(0)
             logging.log(logging.DEBUG, f'Order popped from the queue: {orderId}')
-            return order_queue.DequeueResponse(orderId=orderId, success=True)
+            return order_queue.DequeueResponse(orderId=orderId, items=items, success=True)
         else:
             return order_queue.DequeueResponse(success=False)
 

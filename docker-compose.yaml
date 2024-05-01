@@ -190,3 +190,56 @@ services:
       volumes:
           - ./utils:/app/utils
           - ./order_executor/src:/app/order_executor/src
+
+  books_database_1:
+      build:
+          context: ./
+          dockerfile: ./books_database/Dockerfile
+      ports:
+          - 50060:50060
+      environment:
+          - PYTHONUNBUFFERED=TRUE
+          - PYTHONFILE=/app/books_database/src/app.py
+          - REDIS_ADDRESS=http://redis:6379
+          - SERVICE_ID=books_database_1
+          - PORT=50060
+          - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+          - LIST_OF_REPLICAS=books_database_2:50061,books_database_3:50062
+      volumes:
+          - ./utils:/app/utils
+          - ./books_database/src:/app/books_database/src
+  books_database_2:
+      build:
+          context: ./
+          dockerfile: ./books_database/Dockerfile
+      ports:
+          - 50061:50061
+      environment:
+          - PYTHONUNBUFFERED=TRUE
+          - PYTHONFILE=/app/books_database/src/app.py
+          - REDIS_ADDRESS=http://redis:6379
+          - SERVICE_ID=books_database_2
+          - PORT=50061
+          - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+          - LIST_OF_REPLICAS=books_database_1:50060,books_database_3:50062
+      volumes:
+          - ./utils:/app/utils
+          - ./books_database/src:/app/books_database/src
+
+  books_database_3:
+      build:
+          context: ./
+          dockerfile: ./books_database/Dockerfile
+      ports:
+          - 50062:50062
+      environment:
+          - PYTHONUNBUFFERED=TRUE
+          - PYTHONFILE=/app/books_database/src/app.py
+          - REDIS_ADDRESS=http://redis:6379
+          - SERVICE_ID=books_database_3
+          - PORT=50062
+          - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+          - LIST_OF_REPLICAS=books_database_1:50060,books_database_2:50061
+      volumes:
+          - ./utils:/app/utils
+          - ./books_database/src:/app/books_database/src

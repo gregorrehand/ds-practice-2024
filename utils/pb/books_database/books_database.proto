@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package books_database;
+
+service BooksDatabaseService {
+  rpc GetStock(GetStockRequest) returns (StockResponse) {}
+  rpc SetStock(SetStockRequest) returns (StockResponse) {}
+  rpc ReplicateChanges(SetStockRequest) returns (StockResponse) {}
+}
+
+message StockResponse {
+  string title = 1;
+  int64 quantity = 2;
+}
+
+message GetStockRequest {
+  string title = 1;
+}
+
+message SetStockRequest {
+  string title = 1;
+  int64 quantity = 2;
+}
+
+
