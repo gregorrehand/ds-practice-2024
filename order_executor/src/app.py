@@ -25,12 +25,18 @@ sys.path.insert(0, utils_path)
 import order_executor_pb2 as order_executor
 import order_executor_pb2_grpc as order_executor_grpc
 
+utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/payment'))
+sys.path.insert(0, utils_path)
+import payment_pb2 as payment
+import payment_pb2_grpc as payment_grpc
+
 import grpc
 from concurrent import futures
 
 logging.getLogger().setLevel(logging.DEBUG)  # set logging level so stuff shows up
 
-class OrderExecutorService():
+
+class OrderExecutorService:
     def __init__(self):
         self.redisClient = redis.Redis(host='redis', port=6379, db=0)
         self.service_id = os.getenv('SERVICE_ID', 'executor1')
@@ -54,28 +60,48 @@ class OrderExecutorService():
         try:
             response = self.dequeue_order()
             if response.success:
-                logging.log(logging.INFO, f"Order {response.orderId} is being executed...")
-                db_ports = [(1,50060), (2, 50061), (3,50062)]
+                orderid = response.orderId
+                logging.log(logging.INFO, f"Order {orderid} is being executed...")
+                db_ports = [(1, 50060), (2, 50061), (3, 50062)]
                 for item in response.items:
                     service, port = random.choice(db_ports)
-                    with grpc.insecure_channel(f"books_database_{service}:{port}") as channel:
-                        # Create a stub object.
-                        stub = books_database_grpc.BooksDatabaseServiceStub(channel)
-                        req = books_database.GetStockRequest(
-                            title=item.name
-                        )
+                    with grpc.insecure_channel(f"books_database_{service}:{port}") as database_channel:
+                        with grpc.insecure_channel(f"payment:50063") as payment_channel:
+                            database_stub = books_database_grpc.BooksDatabaseServiceStub(database_channel)
+                            payment_stub = payment_grpc.PaymentServiceStub(payment_channel)
+                            req = books_database.GetStockRequest(
+                                title=item.name
+                            )
 
-                        # Call the service through the stub object.
-                        response = stub.GetStock(req)
-                        logging.log(logging.DEBUG, f"Get stock response: {response.quantity}")
-                        if response.quantity < item.quantity:
-                            logging.log(logging.ERROR, f"Failed to execute order {response.orderId}: Not enough stock for item {item.name}")
-                            return
-                        req = books_database.SetStockRequest(
-                            title=item.name,
-                            quantity=response.quantity - item.quantity,
-                        )
-                        response = stub.SetStock(req)
+                            # Check, that books_database is ready to commit and has enough stock
+                            stock_response = database_stub.GetStock(req)
+                            logging.log(logging.DEBUG, f"Get stock response: {stock_response.quantity}")
+                            if stock_response.quantity < item.quantity:
+                                logging.log(logging.ERROR, f"Failed to execute order {orderid}: Not enough stock for item {item.name}")
+                                return
+
+                            # Check, that payment service is ready to commit
+                            payment_response = payment_stub.DoPayment(payment.PaymentRequest(
+                                orderId=orderid,
+                                targetBankAccount="EE73234212312",
+                                amount=14.99,
+                            ))
+
+                            if not payment_response.ok:
+                                logging.log(logging.ERROR, f"Failed to execute order {orderid}: Payment service not ready")
+                                return
+
+                            logging.log(logging.DEBUG, f"2PC succeeded for Payment and BooksDatabase. Executing order {orderid}")
+
+                            # Commit the changes: make the payment and update the stock
+                            database_stub.SetStock(books_database.SetStockRequest(
+                                title=item.name,
+                                quantity=stock_response.quantity - item.quantity,
+                            ))
+
+                            payment_stub.ConfirmPayment(payment.ConfirmPaymentRequest(
+                                orderId=orderid,
+                            ))
             else:
                 logging.log(logging.INFO, "No order to execute.")
                 time.sleep(1)
@@ -85,6 +111,7 @@ class OrderExecutorService():
     def try_to_become_leader(self, ttl_seconds=10):
         acquired = self.redisClient.set('order-executor-election', self.service_id, ex=ttl_seconds, nx=True)
         return bool(acquired)
+
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor())

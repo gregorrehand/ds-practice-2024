@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package payment;
+
+service PaymentService {
+    rpc DoPayment (PaymentRequest) returns (PaymentResponse);
+    rpc ConfirmPayment (ConfirmPaymentRequest) returns (PaymentResponse);
+}
+
+message PaymentRequest {
+    string orderId = 1;
+    string targetBankAccount = 2;
+    float amount = 3;
+}
+
+message ConfirmPaymentRequest {
+    string orderId = 1;
+}
+
+message PaymentResponse {
+    bool ok = 1;
+}

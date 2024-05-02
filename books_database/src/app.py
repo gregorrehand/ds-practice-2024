@@ -18,6 +18,7 @@ from concurrent import futures
 
 logging.getLogger().setLevel(logging.DEBUG)  # set logging level so stuff shows up
 
+
 class BooksDatabaseService():
     def __init__(self):
         self.books = {"JavaScript - The Good Parts": 5, "Learning Python": 4}
@@ -64,6 +65,7 @@ class BooksDatabaseService():
         response.title = request.title
         response.quantity = request.quantity
         return response
+
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor())

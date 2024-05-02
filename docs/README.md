@@ -32,3 +32,7 @@ All the executors are trying to acquire the lock. The first one to acquire it be
 The replication of database uses a Remote-write primary-based protocol where the primary server is being chosen by continuous leader elections
 
 ![](DBReplicationDiagram.PNG)
+
+## Distributed Commitment Protocol
+
+![](commitment_diagram.png)
