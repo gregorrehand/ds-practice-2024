@@ -41,16 +41,16 @@ class OrderExecutorService:
         self.redisClient = redis.Redis(host='redis', port=6379, db=0)
         self.service_id = os.getenv('SERVICE_ID', 'executor1')
         while True:
-            logging.log(logging.DEBUG, f"{self.service_id} is trying to become the leader")
+            #logging.log(logging.DEBUG, f"{self.service_id} is trying to become the leader")
             leader = self.try_to_become_leader()
             if leader:
-                logging.log(logging.DEBUG, f"{self.service_id} is now the leader")
+                #logging.log(logging.DEBUG, f"{self.service_id} is now the leader")
                 self.execute_order()
             else:
-                logging.log(logging.DEBUG, f"{self.service_id} is not the leader, waiting")
-                time.sleep(5)  # Wait a bit before retrying for leadership
+                #logging.log(logging.DEBUG, f"{self.service_id} is not the leader, waiting")
+                time.sleep(0.1)  # Wait a bit before retrying for leadership
 
-    def dequeue_order(request):
+    def dequeue_order(self):
         with grpc.insecure_channel('order_queue:50054') as channel:
             stub = order_queue_grpc.OrderQueueServiceStub(channel)
             response = stub.Dequeue(order_queue.DequeueRequest())
@@ -108,7 +108,7 @@ class OrderExecutorService:
         except grpc.RpcError as e:
             logging.log(logging.ERROR, f"Failed to dequeue order: {e}")
 
-    def try_to_become_leader(self, ttl_seconds=10):
+    def try_to_become_leader(self, ttl_seconds=1):
         acquired = self.redisClient.set('order-executor-election', self.service_id, ex=ttl_seconds, nx=True)
         return bool(acquired)
 

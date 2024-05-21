@@ -21,7 +21,7 @@ logging.getLogger().setLevel(logging.DEBUG)  # set logging level so stuff shows 
 
 class BooksDatabaseService():
     def __init__(self):
-        self.books = {"JavaScript - The Good Parts": 5, "Learning Python": 4}
+        self.books = {"JavaScript - The Good Parts": 50, "Learning Python": 4}
         self.redisClient = redis.Redis(host='redis', port=6379, db=0)
         self.service_address = f"{os.getenv('SERVICE_ID')}:{os.getenv('PORT')}"
         self.list_of_replicas = os.getenv('LIST_OF_REPLICAS').split(',')
@@ -39,6 +39,9 @@ class BooksDatabaseService():
             logging.log(logging.DEBUG, f"No current leader, becoming leader with address: {self.service_address}")
             self.redisClient.set('books-database-election', self.service_address, ex=20, nx=True)
             current_leader = self.service_address
+        else:
+            current_leader = current_leader.decode("utf-8")  # redis returns a binary string
+
         if current_leader != self.service_address:
             logging.log(logging.DEBUG, f"I am not the leader, sending write request to : {current_leader}")
             with grpc.insecure_channel(current_leader) as channel:
