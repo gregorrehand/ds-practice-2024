@@ -289,6 +289,7 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "percentage",
             "steps": [
@@ -792,6 +793,6 @@
   "timezone": "browser",
   "title": "Main dashboard",
   "uid": "bdmksnmxumn0ga",
-  "version": 16,
+  "version": 17,
   "weekStart": ""
 }
