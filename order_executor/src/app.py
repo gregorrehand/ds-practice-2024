@@ -4,6 +4,30 @@ import logging
 import time
 import redis
 import random
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+from opentelemetry import metrics
+from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+
+# Service name is required for most backends
+resource = Resource(attributes={
+    SERVICE_NAME: "Order executor"
+})
+
+traceProvider = TracerProvider(resource=resource)
+processor = BatchSpanProcessor(
+    OTLPSpanExporter(endpoint="http://observability:4318/v1/traces")
+)
+traceProvider.add_span_processor(processor)
+trace.set_tracer_provider(traceProvider)
+tracer = trace.get_tracer("orchestrator")
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -60,48 +84,49 @@ class OrderExecutorService:
         try:
             response = self.dequeue_order()
             if response.success:
-                orderid = response.orderId
-                logging.log(logging.INFO, f"Order {orderid} is being executed...")
-                db_ports = [(1, 50060), (2, 50061), (3, 50062)]
-                for item in response.items:
-                    service, port = random.choice(db_ports)
-                    with grpc.insecure_channel(f"books_database_{service}:{port}") as database_channel:
-                        with grpc.insecure_channel(f"payment:50063") as payment_channel:
-                            database_stub = books_database_grpc.BooksDatabaseServiceStub(database_channel)
-                            payment_stub = payment_grpc.PaymentServiceStub(payment_channel)
-                            req = books_database.GetStockRequest(
-                                title=item.name
-                            )
+                with tracer.start_as_current_span(f"{os.getenv('SERVICE_ID', 'executor1')}") as ord:
+                    orderid = response.orderId
+                    logging.log(logging.INFO, f"Order {orderid} is being executed...")
+                    db_ports = [(1, 50060), (2, 50061), (3, 50062)]
+                    for item in response.items:
+                        service, port = random.choice(db_ports)
+                        with grpc.insecure_channel(f"books_database_{service}:{port}") as database_channel:
+                            with grpc.insecure_channel(f"payment:50063") as payment_channel:
+                                database_stub = books_database_grpc.BooksDatabaseServiceStub(database_channel)
+                                payment_stub = payment_grpc.PaymentServiceStub(payment_channel)
+                                req = books_database.GetStockRequest(
+                                    title=item.name
+                                )
 
-                            # Check, that books_database is ready to commit and has enough stock
-                            stock_response = database_stub.GetStock(req)
-                            logging.log(logging.DEBUG, f"Get stock response: {stock_response.quantity}")
-                            if stock_response.quantity < item.quantity:
-                                logging.log(logging.ERROR, f"Failed to execute order {orderid}: Not enough stock for item {item.name}")
-                                return
+                                # Check, that books_database is ready to commit and has enough stock
+                                stock_response = database_stub.GetStock(req)
+                                logging.log(logging.DEBUG, f"Get stock response: {stock_response.quantity}")
+                                if stock_response.quantity < item.quantity:
+                                    logging.log(logging.ERROR, f"Failed to execute order {orderid}: Not enough stock for item {item.name}")
+                                    return
 
-                            # Check, that payment service is ready to commit
-                            payment_response = payment_stub.DoPayment(payment.PaymentRequest(
-                                orderId=orderid,
-                                targetBankAccount="EE73234212312",
-                                amount=14.99,
-                            ))
+                                # Check, that payment service is ready to commit
+                                payment_response = payment_stub.DoPayment(payment.PaymentRequest(
+                                    orderId=orderid,
+                                    targetBankAccount="EE73234212312",
+                                    amount=14.99,
+                                ))
 
-                            if not payment_response.ok:
-                                logging.log(logging.ERROR, f"Failed to execute order {orderid}: Payment service not ready")
-                                return
+                                if not payment_response.ok:
+                                    logging.log(logging.ERROR, f"Failed to execute order {orderid}: Payment service not ready")
+                                    return
 
-                            logging.log(logging.DEBUG, f"2PC succeeded for Payment and BooksDatabase. Executing order {orderid}")
+                                logging.log(logging.DEBUG, f"2PC succeeded for Payment and BooksDatabase. Executing order {orderid}")
 
-                            # Commit the changes: make the payment and update the stock
-                            database_stub.SetStock(books_database.SetStockRequest(
-                                title=item.name,
-                                quantity=stock_response.quantity - item.quantity,
-                            ))
+                                # Commit the changes: make the payment and update the stock
+                                database_stub.SetStock(books_database.SetStockRequest(
+                                    title=item.name,
+                                    quantity=stock_response.quantity - item.quantity,
+                                ))
 
-                            payment_stub.ConfirmPayment(payment.ConfirmPaymentRequest(
-                                orderId=orderid,
-                            ))
+                                payment_stub.ConfirmPayment(payment.ConfirmPaymentRequest(
+                                    orderId=orderid,
+                                ))
             else:
                 logging.log(logging.INFO, "No order to execute.")
                 time.sleep(1)

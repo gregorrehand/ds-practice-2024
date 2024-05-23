@@ -1,7 +1,54 @@
+import random
 import sys
 import os
 import threading
 import logging
+import time
+
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+from opentelemetry import metrics
+from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+
+# Service name is required for most backends
+resource = Resource(attributes={
+    SERVICE_NAME: "Orchestrator"
+})
+
+traceProvider = TracerProvider(resource=resource)
+processor = BatchSpanProcessor(
+    OTLPSpanExporter(endpoint="http://observability:4318/v1/traces")
+)
+traceProvider.add_span_processor(processor)
+trace.set_tracer_provider(traceProvider)
+tracer = trace.get_tracer("orchestrator")
+
+reader = PeriodicExportingMetricReader(
+    OTLPMetricExporter(endpoint="http://observability:4318/v1/metrics"),
+    export_interval_millis=10000,
+)
+meterProvider = MeterProvider(resource=resource, metric_readers=[reader])
+metrics.set_meter_provider(meterProvider)
+
+# Creates a meter from the global meter provider
+meter = metrics.get_meter("orchestrator_metrics")
+order_counter = meter.create_counter("order.counter", unit="1")
+order_counter.add(0)
+hist = meter.create_histogram("aaa", unit="1")
+accepted_order_counter = meter.create_counter("accepted.order.counter", unit="1")
+accepted_order_counter.add(0)
+rejected_order_counter = meter.create_counter("rejected.order.counter", unit="1")
+rejected_order_counter.add(0)
+order_latency = meter.create_gauge("avg.order.time", unit="1")
+order_latency.set(0)
+running_avg_order_latency = 0
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -35,6 +82,7 @@ import grpc
 order_id_counter = 0
 
 
+@tracer.start_as_current_span("Get new orderId")
 def get_order_id():
     global order_id_counter
     order_id_counter += 1
@@ -93,6 +141,8 @@ def validate_order(request):
         response = stub.ValidateOrder(req)
     return response.isOk
 
+
+@tracer.start_as_current_span("Enqueue order")
 def enqueue_order(request):
     with grpc.insecure_channel('order_queue:50054') as channel:
         stub = order_queue_grpc.OrderQueueServiceStub(channel)
@@ -102,18 +152,20 @@ def enqueue_order(request):
         ))
     return response.success
 
+
 # Import Flask.
 # Flask is a web framework for Python.
 # It allows you to build a web application quickly.
 # For more information, see https://flask.palletsprojects.com/en/latest/
 from flask import Flask, request
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 
 # Create a simple Flask app.
 app = Flask(__name__)
+
+
 # Enable CORS for the app.
 CORS(app)
-
 
 # Define a GET endpoint.
 @app.route('/', methods=['GET'])
@@ -128,15 +180,19 @@ def index():
 
 
 @app.route('/checkout', methods=['POST'])
+@tracer.start_as_current_span("Checkout")
 def checkout():
     """
     Responds with a JSON object containing the order ID, status, and suggested books.
     """
+    global running_avg_order_latency, order_id_counter
+    start_time = time.time()
     # Print request object data
     request.json["order_id"] = str(get_order_id())
     logging.log(logging.INFO, f"Received checkout request: {request.json}")
-    out_dict = dict()  # save the results of all threads here
+    order_counter.add(1)
 
+    out_dict = dict()  # save the results of all threads here
     threads = [
         threading.Thread(
             target=lambda request, out_dict: out_dict.__setitem__("verification", get_verification(request)),
@@ -151,14 +207,14 @@ def checkout():
             args=(request.json, out_dict),
             name="suggested_books"),
     ]
+    with tracer.start_as_current_span("Order confirmation") as span:
+        for thread in threads:
+            logging.log(logging.INFO, f"Starting thread {thread.name}")
+            thread.start()
 
-    for thread in threads:
-        logging.log(logging.INFO, f"Starting thread {thread.name}")
-        thread.start()
-
-    for thread in threads:
-        thread.join()
-        logging.log(logging.INFO, f"Thread {thread.name} done")
+        for thread in threads:
+            thread.join()
+            logging.log(logging.INFO, f"Thread {thread.name} done")
 
     order_status_response = {
         'orderId': request.json["order_id"],
@@ -168,10 +224,18 @@ def checkout():
     transaction_approved = out_dict["verification"]
     order_approved = out_dict["fraud_detection"]
     if not transaction_approved:
+        running_avg_order_latency += time.time() - start_time
+        hist.record((time.time() - start_time) * 100000)
+        order_latency.set(running_avg_order_latency / order_id_counter)
+        rejected_order_counter.add(1)
         return {
             'status': 'Transaction Rejected',
         }
     if not order_approved:
+        running_avg_order_latency += time.time() - start_time
+        hist.record((time.time() - start_time) * 100000)
+        order_latency.set(running_avg_order_latency / order_id_counter)
+        rejected_order_counter.add(1)
         return {
             'status': 'Order Rejected',
         }
@@ -179,9 +243,17 @@ def checkout():
     logging.log(logging.INFO, "Sending order status response")
     queue_success = enqueue_order(request.json)
     if not queue_success:
+        running_avg_order_latency += time.time() - start_time
+        hist.record((time.time() - start_time) * 100000)
+        order_latency.set(running_avg_order_latency / order_id_counter)
+        rejected_order_counter.add(1)
         return {
             'status': 'Order rejected due to technical problems',
         }
+    running_avg_order_latency += time.time() - start_time
+    hist.record((time.time() - start_time) * 100000)
+    order_latency.set(running_avg_order_latency / order_id_counter)
+    accepted_order_counter.add(1)
     return order_status_response
 
 

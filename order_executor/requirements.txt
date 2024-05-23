@@ -2,3 +2,4 @@ grpcio==1.60.0
 grpcio-tools==1.60.0
 protobuf==4.25.2
 redis==3.5.3
+opentelemetry-exporter-otlp-proto-http

@@ -39,7 +39,7 @@ class HelloService(transaction_verification_grpc.VerificationServiceServicer):
         logging.log(logging.INFO, f"Received TransactionVerification request orderId: {request.orderId}")
         self.states[request.orderId] = {"should_cancel": False, "vector_clock": [0, 0, 0]}
         response = transaction_verification.VerificationResponse()
-
+        t = time.time()
         while True:
             if self.states[request.orderId]["should_cancel"]:
                 response.isOk = False
@@ -47,7 +47,7 @@ class HelloService(transaction_verification_grpc.VerificationServiceServicer):
                 return response
 
             if (not self.states[request.orderId]["should_cancel"] and
-                    self.states[request.orderId]["vector_clock"][0] == 0):  # transaction verification hasn't been done
+                    self.states[request.orderId]["vector_clock"][0] == 0) or time.time() - t > 1:  # transaction verification hasn't been done
 
                 response.isOk = (request.user_name != "" and
                                  request.user_contact != "" and
@@ -68,7 +68,7 @@ class HelloService(transaction_verification_grpc.VerificationServiceServicer):
 
             if (not self.states[request.orderId]["should_cancel"] and
                     self.states[request.orderId]["vector_clock"][0] >= 1 and  # initial transaction verification done
-                    self.states[request.orderId]["vector_clock"][1] >= 2):  # fraud detection done
+                    self.states[request.orderId]["vector_clock"][1] >= 2) or time.time() - t > 1:  # fraud detection done
 
                 response.isOk = response.isOk and (sum(request.quantities) > 0)
                 self.states[request.orderId]["should_cancel"] = not response.isOk

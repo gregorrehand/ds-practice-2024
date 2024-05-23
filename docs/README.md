@@ -36,3 +36,9 @@ The replication of database uses a Remote-write primary-based protocol where the
 ## Distributed Commitment Protocol
 
 ![](commitment_diagram.png)
+
+## Final architecture diagram
+![](Final_Architecture.png)
+
+## Grafana dashboard
+![](Grafana.png)

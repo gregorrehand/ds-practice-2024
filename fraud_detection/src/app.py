@@ -39,7 +39,7 @@ class FraudDetectionService(fraud_detection_grpc.FraudDetectionServiceServicer):
         logging.log(logging.INFO, f"Received ValidateOrder request orderId: {request.orderId}")
         self.states[request.orderId] = {"should_cancel": False, "vector_clock": [0, 0, 0]}
         response = fraud_detection.FraudDetectionResponse()
-
+        t = time.time()
         while True:
             if self.states[request.orderId]["should_cancel"]:
                 response.isOk = False
@@ -48,7 +48,7 @@ class FraudDetectionService(fraud_detection_grpc.FraudDetectionServiceServicer):
 
             if (not self.states[request.orderId]["should_cancel"] and
                     self.states[request.orderId]["vector_clock"][0] >= 1 and  # transaction verification done
-                    self.states[request.orderId]["vector_clock"][1] == 0):
+                    self.states[request.orderId]["vector_clock"][1] == 0) or time.time() - t > 1:
                 splitDate = request.expirationDate.split("/")
 
                 # Check if the expiration date has already passed
@@ -68,7 +68,7 @@ class FraudDetectionService(fraud_detection_grpc.FraudDetectionServiceServicer):
 
             if (not self.states[request.orderId]["should_cancel"] and
                     self.states[request.orderId]["vector_clock"][0] >= 1 and  # transaction verification done
-                    self.states[request.orderId]["vector_clock"][1] == 1):
+                    self.states[request.orderId]["vector_clock"][1] == 1) or time.time() - t > 1:
 
                 # Check if the expiration date has already passed
                 response.isOk = response.isOk and (request.userName == request.userName.capitalize())
@@ -86,6 +86,8 @@ class FraudDetectionService(fraud_detection_grpc.FraudDetectionServiceServicer):
 
                 del self.states[request.orderId]
                 return response
+
+            time.sleep(0.01)
 
     def send_vector_clock_update(self, service_name, order_id):
         """

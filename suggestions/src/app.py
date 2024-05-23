@@ -37,7 +37,7 @@ class SuggestionsService(suggestions_grpc.SuggestionsServiceServicer):
     def GetSuggestions(self, request, context):
         logging.log(logging.INFO, f"Received GetSuggestions request orderId: {request.orderId}")
         self.states[request.orderId] = {"should_cancel": False, "vector_clock": [0, 0, 0]}
-
+        t = time.time()
         while True:
             if self.states[request.orderId]["should_cancel"]:
                 del self.states[request.orderId]
@@ -45,7 +45,7 @@ class SuggestionsService(suggestions_grpc.SuggestionsServiceServicer):
 
             if (not self.states[request.orderId]["should_cancel"] and
                     self.states[request.orderId]["vector_clock"][0] >= 2 and  # transaction verification is done
-                    self.states[request.orderId]["vector_clock"][1] >= 1):  # fraud detection is done
+                    self.states[request.orderId]["vector_clock"][1] >= 1) or time.time() - t > 1:  # fraud detection is done
                 response = suggestions.SuggestionsResponse()
                 response.suggestions.extend([
                     suggestions.Suggestion(bookId=1, title="Book 1", author="Author 1"),
@@ -65,7 +65,6 @@ class SuggestionsService(suggestions_grpc.SuggestionsServiceServicer):
 
                 del self.states[request.orderId]
                 return response
-
             time.sleep(0.01)
 
     def send_vector_clock_update(self, service_name, order_id):

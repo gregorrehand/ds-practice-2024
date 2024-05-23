@@ -2,6 +2,42 @@ import sys
 import os
 import logging
 import redis
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+from opentelemetry import metrics
+from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+
+# Service name is required for most backends
+resource = Resource(attributes={
+    SERVICE_NAME: "Books database"
+})
+
+traceProvider = TracerProvider(resource=resource)
+processor = BatchSpanProcessor(
+    OTLPSpanExporter(endpoint="http://observability:4318/v1/traces")
+)
+traceProvider.add_span_processor(processor)
+trace.set_tracer_provider(traceProvider)
+tracer = trace.get_tracer("orchestrator")
+
+reader = PeriodicExportingMetricReader(
+    OTLPMetricExporter(endpoint="http://observability:4318/v1/metrics"),
+    export_interval_millis=10000,
+)
+meterProvider = MeterProvider(resource=resource, metric_readers=[reader])
+metrics.set_meter_provider(meterProvider)
+
+# Creates a meter from the global meter provider
+meter = metrics.get_meter("database_metrics")
+book_counter = meter.create_gauge("book.counter", unit="1")
+book_counter.set(0)
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -22,6 +58,7 @@ logging.getLogger().setLevel(logging.DEBUG)  # set logging level so stuff shows 
 class BooksDatabaseService():
     def __init__(self):
         self.books = {"JavaScript - The Good Parts": 50, "Learning Python": 4}
+        book_counter.set(sum(self.books.values()))
         self.redisClient = redis.Redis(host='redis', port=6379, db=0)
         self.service_address = f"{os.getenv('SERVICE_ID')}:{os.getenv('PORT')}"
         self.list_of_replicas = os.getenv('LIST_OF_REPLICAS').split(',')
@@ -51,6 +88,7 @@ class BooksDatabaseService():
         else:
             logging.log(logging.DEBUG, f"Received SetStock request title: {request.title}")
             self.books[request.title] = request.quantity
+            book_counter.set(sum(self.books.values()))
             response = books_database.StockResponse()
             response.title = request.title
             response.quantity = request.quantity
@@ -64,6 +102,7 @@ class BooksDatabaseService():
     def ReplicateChanges(self, request, context):
         logging.log(logging.DEBUG, f"Received ReplicateChanges request title: {request.title}")
         self.books[request.title] = request.quantity
+        book_counter.set(sum(self.books.values()))
         response = books_database.StockResponse()
         response.title = request.title
         response.quantity = request.quantity

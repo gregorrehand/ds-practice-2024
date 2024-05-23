@@ -2,6 +2,42 @@ import sys
 import os
 import logging
 import time
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+from opentelemetry import metrics
+from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+
+# Service name is required for most backends
+resource = Resource(attributes={
+    SERVICE_NAME: "Payment service"
+})
+
+traceProvider = TracerProvider(resource=resource)
+processor = BatchSpanProcessor(
+    OTLPSpanExporter(endpoint="http://observability:4318/v1/traces")
+)
+traceProvider.add_span_processor(processor)
+trace.set_tracer_provider(traceProvider)
+tracer = trace.get_tracer("orchestrator")
+
+reader = PeriodicExportingMetricReader(
+    OTLPMetricExporter(endpoint="http://observability:4318/v1/metrics"),
+    export_interval_millis=10000,
+)
+meterProvider = MeterProvider(resource=resource, metric_readers=[reader])
+metrics.set_meter_provider(meterProvider)
+
+# Creates a meter from the global meter provider
+meter = metrics.get_meter("payment_metrics")
+payment_counter = meter.create_counter("total.payment", unit="1")
+payment_counter.add(0)
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -41,6 +77,7 @@ class PaymentService(payment_grpc.PaymentServiceServicer):
 
         targetBankAccount, amount = self.pending_payments[request.orderId]
         del self.pending_payments[request.orderId]
+        payment_counter.add(amount)
         logging.log(logging.INFO, f"Paid {round(amount, 2)} to {targetBankAccount}, for orderId {request.orderId}")
         response = payment.PaymentResponse()
         response.ok = True
